@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const withdrawButton = document.getElementById("withdrawButton");
     const status = document.getElementById("status");
     const walletAddressField = document.getElementById("walletAddress");
-    const balanceField = document.getElementById("balance"); // Поле для отображения баланса
+    const balanceField = document.getElementById("balance"); // ✅ Элемент для баланса
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    // 📌 Запрос баланса
+    // 📌 Запрос баланса из Hyperliquid
     async function fetchBalance(address) {
         console.log("🔍 Запрашиваем баланс для:", address);
 
