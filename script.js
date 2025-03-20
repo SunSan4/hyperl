@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hyperliquidChain: "Mainnet",
             signatureChainId: "0x66eee",
             destination: userAddress,
-            amount: amount.tostring(),
+            amount: amount.toString(),
             time: timestamp,
             type: "withdraw3",
         };
