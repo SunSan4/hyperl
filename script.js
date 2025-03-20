@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             { name: "chainId", type: "uint256" },
                             { name: "verifyingContract", type: "address" },
                         ],
-                        HyperliquidTransaction:Withdraw: [
+                        HyperliquidTransactionWithdraw: [
                             { name: "hyperliquidChain", type: "string" },
                             { name: "destination", type: "string" },
                             { name: "amount", type: "string" },
