@@ -48,10 +48,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             // Данные для вывода
             const withdrawData = {
-                destination: userAddress,
-                amount: amount.toString(),
+                destination: userAddress,  // Отправляем средства на адрес MetaMask
+                amount: parseFloat(amount), // ✅ Число, а не строка
                 time: Date.now(),
-                type: "withdraw3",
+                type: "withdraw", // ✅ Исправлено с "withdraw3" на "withdraw"
                 signatureChainId: "0xa4b1",
                 hyperliquidChain: "Mainnet"
             };
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ],
                 Withdraw: [
                     { name: "destination", type: "string" },
-                    { name: "amount", type: "string" },
+                    { name: "amount", type: "number" }, // ✅ Указано как число
                     { name: "time", type: "uint64" },
                     { name: "type", type: "string" },
                     { name: "signatureChainId", type: "string" },
@@ -98,23 +98,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                     "api-secret": apiSecret
                 },
                 body: JSON.stringify({
-                    type: "withdraw",
+                    type: "withdraw", // ✅ Исправлено
                     message: withdrawData,
                     signature: signature
                 })
             });
 
-            const responseData = await response.json();
-            console.log("📩 Ответ от API:", responseData);
-
-            if (response.ok) {
-                status.innerText = "✅ Withdraw successful!";
-            } else {
-                status.innerText = `❌ Error: ${responseData.message || "Unknown error"}`;
+            // Проверяем JSON-ответ
+            const responseText = await response.text();
+            try {
+                const responseData = JSON.parse(responseText);
+                console.log("📩 Ответ от API:", responseData);
+                if (response.ok) {
+                    status.innerText = "✅ Withdraw successful!";
+                } else {
+                    status.innerText = `❌ Error: ${responseData.message || "Unknown error"}`;
+                }
+            } catch (jsonError) {
+                console.error("❌ Ошибка при обработке JSON:", responseText);
+                status.innerText = `❌ API error: ${responseText}`;
             }
         } catch (error) {
             console.error("❌ Ошибка при выводе:", error);
             status.innerText = `❌ Error: ${error.message}`;
         }
     });
-}); // ✅ Закрывающая скобка была пропущена
+});
