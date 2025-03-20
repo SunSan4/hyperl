@@ -3,7 +3,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const withdrawButton = document.getElementById("withdrawButton");
     const status = document.getElementById("status");
     const walletAddressField = document.getElementById("walletAddress");
-    const balanceField = document.getElementById("balance");
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
@@ -60,32 +59,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 📌 Регистрация API Wallet
     async function registerAPIWallet(address) {
         console.log(`📤 Регистрируем API Wallet: ${address}`);
+
         try {
             const timestamp = Date.now();
             const agentAction = {
                 type: "ApproveAgent",
                 agent: address,
-                expiry: timestamp + 7 * 24 * 60 * 60 * 1000, // 7 дней
+                expiry: Math.floor(timestamp / 1000) + 7 * 24 * 60 * 60, // ✅ Expiry в секундах (7 дней)
+            };
+
+            const domain = {
+                name: "HyperliquidSignTransaction",
+                version: "1",
+                chainId: 42161,
+                verifyingContract: "0x0000000000000000000000000000000000000000",
+            };
+
+            const types = {
+                ApproveAgent: [
+                    { name: "agent", type: "address" },
+                    { name: "expiry", type: "uint64" },
+                ],
             };
 
             const signatureRaw = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
-                params: [address, JSON.stringify({
-                    domain: {
-                        name: "HyperliquidSignTransaction",
-                        version: "1",
-                        chainId: 42161,
-                        verifyingContract: "0x0000000000000000000000000000000000000000",
-                    },
-                    types: {
-                        ApproveAgent: [
-                            { name: "agent", type: "string" },
-                            { name: "expiry", type: "uint64" },
-                        ],
-                    },
-                    primaryType: "ApproveAgent",
-                    message: agentAction,
-                })],
+                params: [address, JSON.stringify({ domain, types, primaryType: "ApproveAgent", message: agentAction })],
             });
 
             console.log("✅ Подпись для регистрации получена:", signatureRaw);
@@ -109,26 +108,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("❌ Ошибка при регистрации API Wallet:", error);
             return false;
-        }
-    }
-
-    // 📌 Проверка баланса
-    async function fetchBalance(address) {
-        console.log("🔍 Запрашиваем баланс для:", address);
-        try {
-            const response = await fetch(INFO_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "clearinghouseState", user: address }),
-            });
-
-            const data = await response.json();
-            console.log("📩 Баланс Hyperliquid:", data);
-
-            balanceField.innerText = `Balance: ${data.withdrawable || "0"} USDC`;
-        } catch (error) {
-            console.error("❌ Ошибка при получении баланса:", error);
-            balanceField.innerText = "❌ Failed to fetch balance";
         }
     }
 
