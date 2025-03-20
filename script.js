@@ -58,7 +58,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 time: Date.now()
             };
 
-            console.log("📤 Запрос перед отправкой:", JSON.stringify(withdrawData, null, 2));
 
             // Подписываем данные через MetaMask (EIP-712)
             const signature = await window.ethereum.request({
