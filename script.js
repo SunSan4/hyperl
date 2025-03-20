@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // Подключение MetaMask с проверкой userAddress
+    // Подключение MetaMask
     connectWalletButton.addEventListener("click", async () => {
         try {
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
@@ -57,14 +57,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const timestamp = Date.now();
 
-            // Приводим `destination` к точному виду, как в CCXT
+            // ✅ Приводим `destination` к такому же виду, как в CCXT
             const formattedDestination = ethers.utils.getAddress(userAddress);
 
-            // Формируем данные для подписи (аналогично CCXT)
+            // Формируем данные для подписи
             const action = {
                 hyperliquidChain: "Mainnet",
                 signatureChainId: "0x66eee",
-                destination: formattedDestination, // ✅ Теперь адрес совпадает с CCXT
+                destination: formattedDestination, // Теперь адрес точно совпадает с CCXT
                 amount: amount.toString(),
                 time: timestamp,
                 type: "withdraw3"
