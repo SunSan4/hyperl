@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const walletAddressField = document.getElementById("walletAddress");
     let userAddress = null;
 
-    const API_URL = "https://api.hyperliquid.xyz/exchange"; // Hyperliquid API
+    const API_URL = "https://api.hyperliquid.xyz/exchange";
 
     if (typeof window.ethereum !== "undefined") {
         console.log("✅ MetaMask detected");
@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // Подключение MetaMask
+    // 📌 Подключение MetaMask
     connectWalletButton.addEventListener("click", async () => {
         try {
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
@@ -33,6 +33,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    // 📌 Проверка баланса перед выводом
+    const checkBalance = async () => {
+        const API_INFO_URL = "https://api.hyperliquid.xyz/info";
+        const requestBody = { type: "userBalances", user: userAddress };
+
+        console.log("📤 Проверяем баланс в Hyperliquid...");
+
+        const response = await fetch(API_INFO_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+        });
+
+        const responseJson = await response.json();
+        console.log("📩 Баланс в Hyperliquid:", responseJson);
+
+        if (!responseJson || responseJson.error) {
+            console.error("❌ Ошибка: Hyperliquid API не видит аккаунт!");
+            status.innerText = "❌ API требует депозит для активации аккаунта!";
+            return 0;
+        }
+
+        // ✅ Возвращаем доступный баланс
+        return responseJson.withdrawable ? parseFloat(responseJson.withdrawable) : 0;
+    };
+
+    // 📌 Выполняем вывод
     withdrawButton.addEventListener("click", async () => {
         if (!userAddress) {
             status.innerText = "❌ Please connect wallet first!";
@@ -40,36 +67,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const apiKey = document.getElementById("apiKey").value;
-        const apiSecret = document.getElementById("apiSecret").value;
-        const amount = parseFloat(document.getElementById("amount").value).toFixed(2);
+        console.log("🔍 Адрес из MetaMask:", userAddress);
 
-        if (!apiKey || !apiSecret || !amount || amount <= 0) {
-            status.innerText = "❌ Enter API Key, Secret, and a valid Amount!";
-            console.error("❌ Invalid API credentials or amount!");
+        const amount = document.getElementById("amount").value.trim();
+        if (!amount || amount <= 0) {
+            status.innerText = "❌ Enter a valid amount!";
+            console.error("❌ Invalid withdrawal amount!");
             return;
         }
 
+        // ✅ Проверяем баланс перед отправкой
+        const balance = await checkBalance();
+        if (balance < amount) {
+            console.error(`❌ Недостаточно средств! Доступно: ${balance} USDC`);
+            status.innerText = `❌ Недостаточно средств! Доступно: ${balance} USDC`;
+            return;
+        }
+
+        // ✅ Готовим данные для подписи
+        const timestamp = Date.now();
+        const action = {
+            hyperliquidChain: "Mainnet",
+            signatureChainId: "0x66eee",
+            destination: userAddress,
+            amount: amount,
+            time: timestamp,
+            type: "withdraw3",
+        };
+
+        console.log("📤 Данные для подписи:", JSON.stringify(action, null, 2));
+
         try {
-            if (!userAddress || userAddress.length !== 42) {
-                throw new Error("❌ Invalid Ethereum address detected!");
-            }
-
-            const timestamp = Date.now();
-
-            // ✅ Приводим `destination` к такому же виду, как в CCXT
-            const formattedDestination = ethers.utils.getAddress(userAddress);
-
-            // Формируем данные для подписи
-            const action = {
-                hyperliquidChain: "Mainnet",
-                signatureChainId: "0x66eee",
-                destination: formattedDestination, 
-                amount: amount.toString(),
-                time: timestamp,
-                type: "withdraw3"
-            };
-
             const signatureRaw = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
                 params: [userAddress, JSON.stringify({
@@ -77,56 +105,58 @@ document.addEventListener("DOMContentLoaded", async () => {
                         name: "HyperliquidSignTransaction",
                         version: "1",
                         chainId: 42161,
-                        verifyingContract: "0x0000000000000000000000000000000000000000"
+                        verifyingContract: "0x0000000000000000000000000000000000000000",
                     },
                     types: {
                         EIP712Domain: [
                             { name: "name", type: "string" },
                             { name: "version", type: "string" },
                             { name: "chainId", type: "uint256" },
-                            { name: "verifyingContract", type: "address" }
+                            { name: "verifyingContract", type: "address" },
                         ],
-                        Withdraw: [
+                        HyperliquidTransaction:Withdraw: [
                             { name: "hyperliquidChain", type: "string" },
                             { name: "destination", type: "string" },
                             { name: "amount", type: "string" },
                             { name: "time", type: "uint64" },
-                            { name: "type", type: "string"}
-                        ]
+                        ],
                     },
-                    primaryType: "Withdraw",
-                    message: action
-                })]
+                    primaryType: "HyperliquidTransaction:Withdraw",
+                    message: action,
+                })],
             });
 
             console.log("✅ Подпись получена:", signatureRaw);
 
-            const r = "0x" + signatureRaw.slice(2, 66);
-            const s = "0x" + signatureRaw.slice(66, 130);
-            const v = parseInt(signatureRaw.slice(130, 132), 16);
-
+            // ✅ Формируем финальный JSON-запрос
             const requestBody = {
-                action,
+                action: action,
                 nonce: timestamp,
-                signature: { r, s, v }
+                signature: signatureRaw,
             };
 
             console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
 
+            // 📌 Отправляем запрос на вывод
             const response = await fetch(API_URL, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "api-key": apiKey,
-                    "api-secret": apiSecret
-                },
-                body: JSON.stringify(requestBody)
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
             });
 
-            const responseText = await response.text();
-            console.log("📩 Ответ от API:", responseText);
+            const responseJson = await response.json();
+            console.log("📩 Ответ от API:", responseJson);
+
+            if (responseJson.status === "ok") {
+                status.innerText = "✅ Вывод успешно отправлен!";
+                console.log("✅ Успешный вывод!");
+            } else {
+                status.innerText = `❌ Ошибка при выводе: ${responseJson.response}`;
+                console.error("❌ Ошибка при выводе:", responseJson.response);
+            }
         } catch (error) {
-            console.error("❌ Ошибка при выводе:", error);
+            console.error("❌ Ошибка при подписании или отправке запроса:", error);
+            status.innerText = "❌ Ошибка при отправке вывода!";
         }
     });
 });
