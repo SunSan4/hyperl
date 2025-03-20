@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperliquid Withdraw</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.5/web3.min.js"></script>
+    <script defer src="script.js"></script>
+</head>
+<body>
+    <h2>Hyperliquid Withdraw</h2>
+    
+    <label>API Key:</label>
+    <input type="text" id="apiKey" placeholder="Enter API Key">
+    <br><br>
+
+    <label>API Secret:</label>
+    <input type="text" id="apiSecret" placeholder="Enter API Secret">
+    <br><br>
+
+    <label>Amount (USDC):</label>
+    <input type="number" id="amount" placeholder="Enter amount" min="1">
+    <br><br>
+
+    <button id="connectWallet">Connect Wallet</button>
+    <p id="walletAddress">Wallet: Not Connected</p>
+
+    <button id="withdrawButton" disabled>Withdraw</button>
+
+    <p id="status"></p>
+</body>
+</html>
