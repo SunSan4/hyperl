@@ -52,15 +52,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const amount = parseFloat(amountInput).toFixed(2);
 
-        // ✅ Формируем action
+        // ✅ Формируем action с `vaultTransfer`
         const timestamp = Date.now();
         const action = {
-            hyperliquidChain: "Mainnet",
-            signatureChainId: "0x66eee",
-            destination: userAddress,  // ✅ Исправлено (MetaMask -> lowercase)
-            amount: amount,
-            time: timestamp,
-            type: "withdraw3",
+            type: "vaultTransfer", // ✅ Меняем `withdraw3` на `vaultTransfer`
+            vaultAddress: userAddress,
+            isDeposit: false,
+            usd: amount,
         };
 
         console.log("📤 Данные для подписи:", JSON.stringify(action, null, 2));
@@ -82,14 +80,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                             { name: "chainId", type: "uint256" },
                             { name: "verifyingContract", type: "address" },
                         ],
-                        HyperliquidTransactionWithdraw: [
-                            { name: "hyperliquidChain", type: "string" },
-                            { name: "destination", type: "string" },
-                            { name: "amount", type: "string" },
-                            { name: "time", type: "uint64" },
+                        VaultTransfer: [
+                            { name: "vaultAddress", type: "string" },
+                            { name: "isDeposit", type: "bool" },
+                            { name: "usd", type: "string" },
                         ],
                     },
-                    primaryType: "HyperliquidTransactionWithdraw",
+                    primaryType: "VaultTransfer",
                     message: action,
                 })],
             });
