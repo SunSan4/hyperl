@@ -65,10 +65,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 hyperliquidChain: "Mainnet",
                 signatureChainId: "0x66eee",
                 destination: formattedDestination, 
-                amount: amount.toString(),
+                usdc: amount.toString(),
                 time: timestamp,
-                type: "withdraw3",
-                asset: "USDC"
+                type: "withdraw3"
             };
 
             const signatureRaw = await window.ethereum.request({
