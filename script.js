@@ -16,14 +16,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // Подключение MetaMask с обработкой ошибок
+    // Подключение MetaMask с проверкой userAddress
     connectWalletButton.addEventListener("click", async () => {
         try {
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
             if (accounts.length === 0) {
                 throw new Error("❌ No accounts found in MetaMask!");
             }
-            userAddress = accounts[0];
+            userAddress = accounts[0]; // ✅ Используем правильный кошелёк
             walletAddressField.innerText = `Wallet: ${userAddress}`;
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const action = {
                 hyperliquidChain: "Mainnet",
                 signatureChainId: "0x66eee",
-                destination: userAddress,
+                destination: userAddress,  // ✅ Ставим userAddress вместо destination
                 amount: amount.toString(),
                 time: timestamp,
                 type: "withdraw3"
@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signatureRaw);
 
-            // Разбираем подпись в r, s, v (CCXT делает именно так)
+            // Разбираем подпись в r, s, v
             const r = "0x" + signatureRaw.slice(2, 66);
             const s = "0x" + signatureRaw.slice(66, 130);
             const v = parseInt(signatureRaw.slice(130, 132), 16);
