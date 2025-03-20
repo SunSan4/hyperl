@@ -5,6 +5,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const walletAddressField = document.getElementById("walletAddress");
     let userAddress = null;
 
+    const API_URL = "/api/withdraw";  // Vercel Serverless API
+
     if (typeof window.ethereum !== "undefined") {
         console.log("✅ MetaMask detected");
         window.web3 = new Web3(window.ethereum);
@@ -44,8 +46,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            // Отправляем данные на сервер Flask для CCXT
-            const response = await fetch("http://127.0.0.1:5000/withdraw", {
+            // Отправляем данные на Vercel Backend API
+            const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -59,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             const responseData = await response.json();
-            console.log("📩 Ответ от сервера:", responseData);
+            console.log("📩 Ответ от API:", responseData);
 
             if (response.ok) {
                 status.innerText = "✅ Withdraw successful!";
