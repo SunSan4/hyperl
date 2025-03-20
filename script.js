@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 destination: formattedDestination, 
                 amount: amount.toString(),
                 time: timestamp,
-                type: "usdc"
+                type: "withdraw3"
             };
 
             const signatureRaw = await window.ethereum.request({
@@ -90,7 +90,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                             { name: "hyperliquidChain", type: "string" },
                             { name: "destination", type: "string" },
                             { name: "amount", type: "string" },
-                            { name: "time", type: "uint64" }
+                            { name: "time", type: "uint64" },
+                            { name: "type", type: "string"}
                         ]
                     },
                     primaryType: "Withdraw",
