@@ -50,15 +50,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const amount = parseFloat(amountInput).toFixed(2);
+        const amount = parseFloat(amountInput).toFixed(2); // ✅ Делаем float, как требует API
 
-        // ✅ Формируем action с `vaultTransfer`
+        // ✅ Формируем action для `withdraw3`
         const timestamp = Date.now();
         const action = {
-            type: "vaultTransfer", // ✅ Меняем `withdraw3` на `vaultTransfer`
-            vaultAddress: userAddress,
-            isDeposit: false,
-            usd: amount,
+            type: "withdraw3", // ✅ API требует именно `withdraw3`
+            hyperliquidChain: "Mainnet",
+            signatureChainId: "0xa4b1", // ✅ Arbitrum (из документации)
+            destination: userAddress,  // ✅ Адрес из MetaMask
+            amount: amount.toString(), // ✅ API требует строку
+            time: timestamp, // ✅ Должен совпадать с `nonce`
         };
 
         console.log("📤 Данные для подписи:", JSON.stringify(action, null, 2));
@@ -80,13 +82,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                             { name: "chainId", type: "uint256" },
                             { name: "verifyingContract", type: "address" },
                         ],
-                        VaultTransfer: [
-                            { name: "vaultAddress", type: "string" },
-                            { name: "isDeposit", type: "bool" },
-                            { name: "usd", type: "string" },
+                        HyperliquidTransactionWithdraw: [
+                            { name: "hyperliquidChain", type: "string" },
+                            { name: "signatureChainId", type: "string" },
+                            { name: "destination", type: "string" },
+                            { name: "amount", type: "string" },
+                            { name: "time", type: "uint64" },
                         ],
                     },
-                    primaryType: "VaultTransfer",
+                    primaryType: "HyperliquidTransactionWithdraw",
                     message: action,
                 })],
             });
@@ -101,7 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             // ✅ Формируем финальный JSON-запрос
             const requestBody = {
                 action: action,
-                nonce: timestamp,
+                nonce: timestamp, // ✅ Должен совпадать с `time`
                 signature: { r, s, v },
             };
 
