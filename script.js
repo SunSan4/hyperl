@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
+    const API_INFO_URL = "https://api.hyperliquid.xyz/info";
 
     if (typeof window.ethereum !== "undefined") {
         console.log("✅ MetaMask detected");
@@ -35,28 +36,39 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 📌 Проверка баланса перед выводом
     const checkBalance = async () => {
-        const API_INFO_URL = "https://api.hyperliquid.xyz/info";
-        const requestBody = { type: "userBalances", user: userAddress };
-
-        console.log("📤 Проверяем баланс в Hyperliquid...");
-
-        const response = await fetch(API_INFO_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-        });
-
-        const responseJson = await response.json();
-        console.log("📩 Баланс в Hyperliquid:", responseJson);
-
-        if (!responseJson || responseJson.error) {
-            console.error("❌ Ошибка: Hyperliquid API не видит аккаунт!");
-            status.innerText = "❌ API требует депозит для активации аккаунта!";
+        if (!userAddress) {
+            console.error("❌ Ошибка: userAddress не найден!");
             return 0;
         }
 
-        // ✅ Возвращаем доступный баланс
-        return responseJson.withdrawable ? parseFloat(responseJson.withdrawable) : 0;
+        const requestBody = {
+            type: "userBalances",
+            user: userAddress  // ✅ Используем правильный userAddress
+        };
+
+        console.log("📤 Отправляем запрос на баланс:", JSON.stringify(requestBody, null, 2));
+
+        try {
+            const response = await fetch(API_INFO_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error("❌ Ошибка API:", text);
+                return 0;
+            }
+
+            const responseJson = await response.json();
+            console.log("📩 Ответ от API (баланс):", responseJson);
+
+            return responseJson.withdrawable ? parseFloat(responseJson.withdrawable) : 0;
+        } catch (error) {
+            console.error("❌ Ошибка при запросе баланса:", error);
+            return 0;
+        }
     };
 
     // 📌 Выполняем вывод
@@ -114,14 +126,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                             { name: "chainId", type: "uint256" },
                             { name: "verifyingContract", type: "address" },
                         ],
-                        HyperliquidTransactionWithdraw: [
+                        HyperliquidTransactionWithdraw: [  // ✅ Убрали `:` в названии типа
                             { name: "hyperliquidChain", type: "string" },
                             { name: "destination", type: "string" },
                             { name: "amount", type: "string" },
                             { name: "time", type: "uint64" },
                         ],
                     },
-                    primaryType: "HyperliquidTransaction:Withdraw",
+                    primaryType: "HyperliquidTransactionWithdraw", // ✅ Тоже убрали `:` здесь
                     message: action,
                 })],
             });
