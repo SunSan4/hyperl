@@ -16,10 +16,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // Подключение MetaMask
+    // Подключение MetaMask с обработкой ошибок
     connectWalletButton.addEventListener("click", async () => {
         try {
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+            if (accounts.length === 0) {
+                throw new Error("❌ No accounts found in MetaMask!");
+            }
             userAddress = accounts[0];
             walletAddressField.innerText = `Wallet: ${userAddress}`;
             withdrawButton.disabled = false;
@@ -33,6 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     withdrawButton.addEventListener("click", async () => {
         if (!userAddress) {
             status.innerText = "❌ Please connect wallet first!";
+            console.error("❌ No connected wallet!");
             return;
         }
 
@@ -42,11 +46,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!apiKey || !apiSecret || !amount || amount <= 0) {
             status.innerText = "❌ Enter API Key, Secret, and a valid Amount!";
+            console.error("❌ Invalid API credentials or amount!");
             return;
         }
 
         try {
-            // Создаём данные в точности, как требует API
+            // Проверяем, пуст ли userAddress
+            if (!userAddress || userAddress.length !== 42) {
+                throw new Error("❌ Invalid Ethereum address detected!");
+            }
+
+            // Создаём корректное тело запроса
             const message = {
                 destination: userAddress, 
                 amount: amount.toString(), 
@@ -93,7 +103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signature);
 
-            // Итоговый JSON-запрос (теперь он 1-в-1 как в API)
+            // Итоговый JSON-запрос
             const requestBody = {
                 domain,
                 message,
