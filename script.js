@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const apiKey = document.getElementById("apiKey").value;
         const apiSecret = document.getElementById("apiSecret").value;
-        const amount = document.getElementById("amount").value;
+        const amount = parseFloat(document.getElementById("amount").value); // ✅ amount как float
 
         if (!apiKey || !apiSecret || !amount || amount <= 0) {
             status.innerText = "❌ Enter API Key, Secret, and a valid Amount!";
@@ -46,54 +46,52 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            // Создаём правильные данные для EIP-712 подписи
+            // Данные для вывода
             const withdrawMessage = {
-                destination: userAddress,  // Адрес вывода
-                amount: amount.toString(), // Сумма в виде строки
-                time: Math.floor(Date.now() / 1000), // Время в секундах
+                destination: userAddress, 
+                amount: amount.toFixed(2), // ✅ Округляем до двух знаков, как требует API
+                time: Date.now(), // ✅ Время в миллисекундах, а не секундах
                 type: "withdraw",
                 signatureChainId: "0xa4b1",
                 hyperliquidChain: "Mainnet"
             };
 
-            // EIP-712 домен (универсальный для всех подписей)
-            const domain = {
-                name: "HyperliquidSignTransaction",
-                version: "1",
-                chainId: 42161,
-                verifyingContract: "0x0000000000000000000000000000000000000000"
-            };
-
-            // EIP-712 типы
-            const types = {
-                EIP712Domain: [
-                    { name: "name", type: "string" },
-                    { name: "version", type: "string" },
-                    { name: "chainId", type: "uint256" },
-                    { name: "verifyingContract", type: "address" }
-                ],
-                Withdraw: [
-                    { name: "destination", type: "address" },
-                    { name: "amount", type: "string" }, // Сумма как строка
-                    { name: "time", type: "uint64" }, // Время как uint64
-                    { name: "type", type: "string" },
-                    { name: "signatureChainId", type: "string" },
-                    { name: "hyperliquidChain", type: "string" }
-                ]
-            };
-
-            // Выводим данные для подписи
             console.log("📤 Данные для подписи:", JSON.stringify(withdrawMessage, null, 2));
 
-            // Подписываем данные через MetaMask (правильный формат EIP-712)
+            // Подписываем через MetaMask
             const signature = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
-                params: [userAddress, JSON.stringify({ domain, types, primaryType: "Withdraw", message: withdrawMessage })]
+                params: [userAddress, JSON.stringify({
+                    domain: {
+                        name: "HyperliquidSignTransaction",
+                        version: "1",
+                        chainId: 42161,
+                        verifyingContract: "0x0000000000000000000000000000000000000000"
+                    },
+                    types: {
+                        EIP712Domain: [
+                            { name: "name", type: "string" },
+                            { name: "version", type: "string" },
+                            { name: "chainId", type: "uint256" },
+                            { name: "verifyingContract", type: "address" }
+                        ],
+                        Withdraw: [
+                            { name: "destination", type: "address" },
+                            { name: "amount", type: "string" },
+                            { name: "time", type: "uint64" },
+                            { name: "type", type: "string" },
+                            { name: "signatureChainId", type: "string" },
+                            { name: "hyperliquidChain", type: "string" }
+                        ]
+                    },
+                    primaryType: "Withdraw",
+                    message: withdrawMessage
+                })]
             });
 
             console.log("✅ Подпись получена:", signature);
 
-            // Создаём JSON-запрос
+            // Итоговый JSON-запрос
             const requestBody = {
                 type: "withdraw",
                 message: withdrawMessage,
