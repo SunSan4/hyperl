@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const apiKey = document.getElementById("apiKey").value;
         const apiSecret = document.getElementById("apiSecret").value;
-        const amount = parseFloat(document.getElementById("amount").value).toFixed(2); // ✅ Округляем до 2 знаков
+        const amount = parseFloat(document.getElementById("amount").value).toFixed(2);
 
         if (!apiKey || !apiSecret || !amount || amount <= 0) {
             status.innerText = "❌ Enter API Key, Secret, and a valid Amount!";
@@ -46,17 +46,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            // Формируем данные в ТОМ ЖЕ формате, что и в API
+            // Создаём данные в точности, как требует API
             const message = {
                 destination: userAddress, 
-                amount: amount.toString(), // ✅ Передаём как строку
-                time: Date.now(), // ✅ API требует миллисекунды
+                amount: amount.toString(), 
+                time: Date.now(), 
                 type: "withdraw3",
                 signatureChainId: "0xa4b1",
                 hyperliquidChain: "Mainnet"
             };
 
-            // EIP-712 домен
             const domain = {
                 name: "HyperliquidSignTransaction",
                 version: "1",
@@ -64,7 +63,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 verifyingContract: "0x0000000000000000000000000000000000000000"
             };
 
-            // EIP-712 типы
             const types = {
                 EIP712Domain: [
                     { name: "name", type: "string" },
@@ -82,7 +80,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("📤 Данные для подписи:", JSON.stringify({ domain, types, primaryType: "HyperliquidTransaction:Withdraw", message }, null, 2));
 
-            // Подписываем данные через MetaMask (EIP-712)
+            // Подписываем данные через MetaMask
             const signature = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
                 params: [userAddress, JSON.stringify({
@@ -95,10 +93,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signature);
 
-            // Итоговый JSON-запрос
+            // Итоговый JSON-запрос (теперь он 1-в-1 как в API)
             const requestBody = {
-                type: "withdraw",
+                domain,
                 message,
+                primaryType: "HyperliquidTransaction:Withdraw",
+                types,
                 signature
             };
 
