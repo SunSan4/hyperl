@@ -56,60 +56,59 @@ document.addEventListener("DOMContentLoaded", async () => {
                 throw new Error("❌ Invalid Ethereum address detected!");
             }
 
-            // Создаём корректное тело запроса
-            const message = {
-                destination: userAddress, 
-                amount: amount.toString(), 
-                time: Date.now(), 
-                type: "withdraw3",
-                signatureChainId: "0xa4b1",
-                hyperliquidChain: "Mainnet"
+            const timestamp = Date.now();
+
+            // Формируем данные для подписи (аналогично CCXT)
+            const action = {
+                hyperliquidChain: "Mainnet",
+                signatureChainId: "0x66eee",
+                destination: userAddress,
+                amount: amount.toString(),
+                time: timestamp,
+                type: "withdraw3"
             };
 
-            const domain = {
-                name: "HyperliquidSignTransaction",
-                version: "1",
-                chainId: 42161,
-                verifyingContract: "0x0000000000000000000000000000000000000000"
-            };
-
-            const types = {
-                EIP712Domain: [
-                    { name: "name", type: "string" },
-                    { name: "version", type: "string" },
-                    { name: "chainId", type: "uint256" },
-                    { name: "verifyingContract", type: "address" }
-                ],
-                "HyperliquidTransaction:Withdraw": [
-                    { name: "hyperliquidChain", type: "string" },
-                    { name: "destination", type: "string" },
-                    { name: "amount", type: "string" },
-                    { name: "time", type: "uint64" }
-                ]
-            };
-
-            console.log("📤 Данные для подписи:", JSON.stringify({ domain, types, primaryType: "HyperliquidTransaction:Withdraw", message }, null, 2));
-
-            // Подписываем данные через MetaMask
-            const signature = await window.ethereum.request({
+            // Подписываем `action` через MetaMask (EIP-712)
+            const signatureRaw = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
                 params: [userAddress, JSON.stringify({
-                    domain,
-                    types,
-                    primaryType: "HyperliquidTransaction:Withdraw",
-                    message
+                    domain: {
+                        name: "HyperliquidSignTransaction",
+                        version: "1",
+                        chainId: 42161,
+                        verifyingContract: "0x0000000000000000000000000000000000000000"
+                    },
+                    types: {
+                        EIP712Domain: [
+                            { name: "name", type: "string" },
+                            { name: "version", type: "string" },
+                            { name: "chainId", type: "uint256" },
+                            { name: "verifyingContract", type: "address" }
+                        ],
+                        Withdraw: [
+                            { name: "hyperliquidChain", type: "string" },
+                            { name: "destination", type: "string" },
+                            { name: "amount", type: "string" },
+                            { name: "time", type: "uint64" }
+                        ]
+                    },
+                    primaryType: "Withdraw",
+                    message: action
                 })]
             });
 
-            console.log("✅ Подпись получена:", signature);
+            console.log("✅ Подпись получена:", signatureRaw);
 
-            // Итоговый JSON-запрос
+            // Разбираем подпись в r, s, v (CCXT делает именно так)
+            const r = "0x" + signatureRaw.slice(2, 66);
+            const s = "0x" + signatureRaw.slice(66, 130);
+            const v = parseInt(signatureRaw.slice(130, 132), 16);
+
+            // Финальный JSON-запрос (аналогичный CCXT)
             const requestBody = {
-                domain,
-                message,
-                primaryType: "HyperliquidTransaction:Withdraw",
-                types,
-                signature
+                action,
+                nonce: timestamp,
+                signature: { r, s, v }
             };
 
             console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
@@ -132,7 +131,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (response.ok) {
                     status.innerText = "✅ Withdraw successful!";
                 } else {
-                    status.innerText = `❌ Error: ${responseData.message || "Unknown error"}`;
+                    status.innerText = `❌ Error: ${responseData.response || "Unknown error"}`;
                 }
             } catch (jsonError) {
                 console.error("❌ Ошибка при обработке JSON:", responseText);
