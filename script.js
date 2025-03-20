@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const response = await fetch(INFO_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "agentState", agent: address }),
+                body: JSON.stringify({ type: "clearinghouseState", user: address }), // ✅ Исправлено (API требует `clearinghouseState`)
             });
 
             if (!response.ok) {
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const data = await response.json();
             console.log("📩 API Wallet статус:", data);
-            return data && data.status === "ok";
+            return data && data.withdrawable !== undefined; // ✅ Проверяем, есть ли информация
         } catch (error) {
             console.error("❌ Ошибка при проверке API Wallet:", error);
             return false;
@@ -65,10 +65,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         try {
             const timestamp = Math.floor(Date.now() / 1000); // ✅ Expiry в секундах
+            const expiry = timestamp + 7 * 24 * 60 * 60; // 7 дней
+
             const agentAction = {
                 type: "ApproveAgent",
                 agent: address,
-                expiry: timestamp + 7 * 24 * 60 * 60, // 7 дней
+                expiry: expiry,
             };
 
             const domain = {
@@ -80,8 +82,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const types = {
                 ApproveAgent: [
-                    { name: "agent", type: "address" }, // ✅ Исправлено
-                    { name: "expiry", type: "uint64" }, // ✅ Исправлено
+                    { name: "agent", type: "address" },
+                    { name: "expiry", type: "uint64" },
                 ],
             };
 
@@ -94,7 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const r = signatureRaw.slice(0, 66);
             const s = "0x" + signatureRaw.slice(66, 130);
-            const v = parseInt(signatureRaw.slice(130, 132), 16) + 27;
+            const v = parseInt(signatureRaw.slice(130, 132), 16);
 
             const requestBody = {
                 action: agentAction,
