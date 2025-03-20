@@ -46,9 +46,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 body: JSON.stringify({ type: "agentState", agent: address }),
             });
 
+            if (!response.ok) {
+                throw new Error(`❌ Ошибка API: ${response.status}`);
+            }
+
             const data = await response.json();
             console.log("📩 API Wallet статус:", data);
-
             return data && data.status === "ok";
         } catch (error) {
             console.error("❌ Ошибка при проверке API Wallet:", error);
@@ -61,11 +64,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log(`📤 Регистрируем API Wallet: ${address}`);
 
         try {
-            const timestamp = Date.now();
+            const timestamp = Math.floor(Date.now() / 1000); // ✅ Expiry в секундах
             const agentAction = {
                 type: "ApproveAgent",
                 agent: address,
-                expiry: Math.floor(timestamp / 1000) + 7 * 24 * 60 * 60, // ✅ Expiry в секундах (7 дней)
+                expiry: timestamp + 7 * 24 * 60 * 60, // 7 дней
             };
 
             const domain = {
@@ -77,8 +80,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const types = {
                 ApproveAgent: [
-                    { name: "agent", type: "address" },
-                    { name: "expiry", type: "uint64" },
+                    { name: "agent", type: "address" }, // ✅ Исправлено
+                    { name: "expiry", type: "uint64" }, // ✅ Исправлено
                 ],
             };
 
@@ -89,11 +92,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись для регистрации получена:", signatureRaw);
 
+            const r = signatureRaw.slice(0, 66);
+            const s = "0x" + signatureRaw.slice(66, 130);
+            const v = parseInt(signatureRaw.slice(130, 132), 16) + 27;
+
             const requestBody = {
                 action: agentAction,
-                nonce: timestamp,
-                signature: signatureRaw,
+                nonce: timestamp, // ✅ Nonce совпадает с `time`
+                signature: { r, s, v },
             };
+
+            console.log("📤 Запрос на регистрацию API Wallet:", JSON.stringify(requestBody, null, 2));
 
             const response = await fetch(API_URL, {
                 method: "POST",
