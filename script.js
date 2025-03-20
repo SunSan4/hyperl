@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 destination: userAddress,  // Отправляем средства на адрес MetaMask
                 amount: parseFloat(amount), // ✅ Число, а не строка
                 time: Date.now(),
-                type: "withdraw", // ✅ Исправлено с "withdraw3" на "withdraw"
+                type: "withdraw", // ✅ Должно быть "withdraw"
                 signatureChainId: "0xa4b1",
                 hyperliquidChain: "Mainnet"
             };
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ],
                 Withdraw: [
                     { name: "destination", type: "string" },
-                    { name: "amount", type: "number" }, // ✅ Указано как число
+                    { name: "amount", type: "number" }, // ✅ Должно быть числом
                     { name: "time", type: "uint64" },
                     { name: "type", type: "string" },
                     { name: "signatureChainId", type: "string" },
@@ -89,6 +89,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signature);
 
+            // Создаём JSON-запрос
+            const requestBody = {
+                type: "withdraw", // ✅ Должно быть "withdraw"
+                message: withdrawData,
+                signature: signature
+            };
+
+            // Выводим JSON-запрос в консоль
+            console.log("📤 Запрос в Hyperliquid API:", JSON.stringify(requestBody, null, 2));
+
             // Отправляем запрос на Hyperliquid API
             const response = await fetch(API_URL, {
                 method: "POST",
@@ -97,11 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     "api-key": apiKey,
                     "api-secret": apiSecret
                 },
-                body: JSON.stringify({
-                    type: "withdraw", // ✅ Исправлено
-                    message: withdrawData,
-                    signature: signature
-                })
+                body: JSON.stringify(requestBody)
             });
 
             // Проверяем JSON-ответ
