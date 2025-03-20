@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (accounts.length === 0) {
                 throw new Error("❌ No accounts found in MetaMask!");
             }
-            userAddress = accounts[0];
+            userAddress = accounts[0].toLowerCase(); // ✅ Делаем адрес в нижнем регистре
             walletAddressField.innerText = `Wallet: ${userAddress}`;
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
@@ -50,15 +50,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const amount = parseFloat(amountInput).toFixed(2); // ✅ Делаем float c 2 знаками после запятой
+        const amount = parseFloat(amountInput).toFixed(2);
 
         // ✅ Формируем action
         const timestamp = Date.now();
         const action = {
             hyperliquidChain: "Mainnet",
             signatureChainId: "0x66eee",
-            destination: userAddress,
-            amount: amount,  // ✅ Отправляем float, а не строку
+            destination: userAddress,  // ✅ Исправлено (MetaMask -> lowercase)
+            amount: amount,
             time: timestamp,
             type: "withdraw3",
         };
@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const requestBody = {
                 action: action,
                 nonce: timestamp,
-                signature: { r, s, v }, // ✅ Теперь `signature` — объект
+                signature: { r, s, v },
             };
 
             console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
