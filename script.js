@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 hyperliquidChain: "Mainnet",
                 signatureChainId: "0x66eee",
                 destination: formattedDestination, // Теперь адрес точно совпадает с CCXT
+                currency: "USDC",
                 amount: amount.toString(),
                 time: timestamp,
                 type: "withdraw3"
