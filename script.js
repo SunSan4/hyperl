@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const withdrawButton = document.getElementById("withdrawButton");
     const status = document.getElementById("status");
     const walletAddressField = document.getElementById("walletAddress");
+    const balanceField = document.getElementById("balance"); // Поле баланса
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
@@ -29,12 +30,35 @@ document.addEventListener("DOMContentLoaded", async () => {
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
 
-            await fetchBalance(userAddress);
+            await fetchBalance(userAddress); // Загружаем баланс после подключения
         } catch (error) {
             console.error("❌ Wallet connection failed:", error);
             status.innerText = "❌ Failed to connect wallet.";
         }
     });
+
+    // 📌 Проверка баланса
+    async function fetchBalance(address) {
+        console.log("🔍 Получаем баланс для:", address);
+        try {
+            const response = await fetch(INFO_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "clearinghouseState", user: address }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`❌ Ошибка API: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("📩 Баланс Hyperliquid:", data);
+            balanceField.innerText = `Balance: ${data.withdrawable} USDC`; // Показываем баланс
+        } catch (error) {
+            console.error("❌ Ошибка при получении баланса:", error);
+            balanceField.innerText = "Balance: Error";
+        }
+    }
 
     // 📌 Проверка API Wallet
     async function checkAPIWalletRegistration(address) {
@@ -43,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const response = await fetch(INFO_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "clearinghouseState", user: address }), // ✅ Исправлено (API требует `clearinghouseState`)
+                body: JSON.stringify({ type: "clearinghouseState", user: address }),
             });
 
             if (!response.ok) {
@@ -52,7 +76,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const data = await response.json();
             console.log("📩 API Wallet статус:", data);
-            return data && data.withdrawable !== undefined; // ✅ Проверяем, есть ли информация
+            return data && data.withdrawable !== undefined; // Проверяем, есть ли баланс
         } catch (error) {
             console.error("❌ Ошибка при проверке API Wallet:", error);
             return false;
@@ -64,7 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log(`📤 Регистрируем API Wallet: ${address}`);
 
         try {
-            const timestamp = Math.floor(Date.now() / 1000); // ✅ Expiry в секундах
+            const timestamp = Math.floor(Date.now() / 1000); // Expiry в секундах
             const expiry = timestamp + 7 * 24 * 60 * 60; // 7 дней
 
             const agentAction = {
@@ -100,7 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const requestBody = {
                 action: agentAction,
-                nonce: timestamp, // ✅ Nonce совпадает с `time`
+                nonce: timestamp,
                 signature: { r, s, v },
             };
 
@@ -150,6 +174,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const amount = parseFloat(amountInput).toFixed(2);
         const timestamp = Date.now();
+
         const action = {
             type: "withdraw3",
             hyperliquidChain: "Mainnet",
