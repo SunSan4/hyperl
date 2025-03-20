@@ -67,7 +67,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 destination: formattedDestination, 
                 amount: amount.toString(),
                 time: timestamp,
-                type: "withdraw3"
+                type: "withdraw3",
+                asset: "USD"
             };
 
             const signatureRaw = await window.ethereum.request({
