@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (accounts.length === 0) {
                 throw new Error("❌ No accounts found in MetaMask!");
             }
-            userAddress = accounts[0]; // ✅ Используем правильный кошелёк
+            userAddress = accounts[0];
             walletAddressField.innerText = `Wallet: ${userAddress}`;
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
@@ -51,24 +51,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            // Проверяем, пуст ли userAddress
             if (!userAddress || userAddress.length !== 42) {
                 throw new Error("❌ Invalid Ethereum address detected!");
             }
 
             const timestamp = Date.now();
 
+            // Приводим `destination` к точному виду, как в CCXT
+            const formattedDestination = ethers.utils.getAddress(userAddress);
+
             // Формируем данные для подписи (аналогично CCXT)
             const action = {
                 hyperliquidChain: "Mainnet",
                 signatureChainId: "0x66eee",
-                destination: userAddress,  // ✅ Ставим userAddress вместо destination
+                destination: formattedDestination, // ✅ Теперь адрес совпадает с CCXT
                 amount: amount.toString(),
                 time: timestamp,
                 type: "withdraw3"
             };
 
-            // Подписываем `action` через MetaMask (EIP-712)
             const signatureRaw = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
                 params: [userAddress, JSON.stringify({
@@ -99,12 +100,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signatureRaw);
 
-            // Разбираем подпись в r, s, v
             const r = "0x" + signatureRaw.slice(2, 66);
             const s = "0x" + signatureRaw.slice(66, 130);
             const v = parseInt(signatureRaw.slice(130, 132), 16);
 
-            // Финальный JSON-запрос (аналогичный CCXT)
             const requestBody = {
                 action,
                 nonce: timestamp,
@@ -113,7 +112,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
 
-            // Отправляем запрос в Hyperliquid API
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
@@ -125,21 +123,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             const responseText = await response.text();
-            try {
-                const responseData = JSON.parse(responseText);
-                console.log("📩 Ответ от API:", responseData);
-                if (response.ok) {
-                    status.innerText = "✅ Withdraw successful!";
-                } else {
-                    status.innerText = `❌ Error: ${responseData.response || "Unknown error"}`;
-                }
-            } catch (jsonError) {
-                console.error("❌ Ошибка при обработке JSON:", responseText);
-                status.innerText = `❌ API error: ${responseText}`;
-            }
+            console.log("📩 Ответ от API:", responseText);
         } catch (error) {
             console.error("❌ Ошибка при выводе:", error);
-            status.innerText = `❌ Error: ${error.message}`;
         }
     });
 });
