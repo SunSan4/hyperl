@@ -3,11 +3,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const withdrawButton = document.getElementById("withdrawButton");
     const status = document.getElementById("status");
     const walletAddressField = document.getElementById("walletAddress");
-    const balanceField = document.getElementById("balance"); // ✅ Элемент для баланса
+    const balanceField = document.getElementById("balance");
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
-    const INFO_URL = "https://api.hyperliquid.xyz/info"; // URL для запроса баланса
+    const INFO_URL = "https://api.hyperliquid.xyz/info";
 
     if (typeof window.ethereum !== "undefined") {
         console.log("✅ MetaMask detected");
@@ -25,12 +25,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (accounts.length === 0) {
                 throw new Error("❌ No accounts found in MetaMask!");
             }
-            userAddress = accounts[0].toLowerCase(); // ✅ Делаем адрес в нижнем регистре
+            userAddress = accounts[0].toLowerCase();
             walletAddressField.innerText = `Wallet: ${userAddress}`;
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
 
-            // ✅ Запрашиваем баланс после подключения
             await fetchBalance(userAddress);
         } catch (error) {
             console.error("❌ Wallet connection failed:", error);
@@ -38,64 +37,136 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    // 📌 Запрос баланса из Hyperliquid
-    async function fetchBalance(address) {
-        console.log("🔍 Запрашиваем баланс для:", address);
-
+    // 📌 Проверка API Wallet
+    async function checkAPIWalletRegistration(address) {
+        console.log("🔍 Проверяем API Wallet:", address);
         try {
             const response = await fetch(INFO_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: "clearinghouseState",
-                    user: address,
-                }),
+                body: JSON.stringify({ type: "agentState", agent: address }),
+            });
+
+            const data = await response.json();
+            console.log("📩 API Wallet статус:", data);
+
+            return data && data.status === "ok";
+        } catch (error) {
+            console.error("❌ Ошибка при проверке API Wallet:", error);
+            return false;
+        }
+    }
+
+    // 📌 Регистрация API Wallet
+    async function registerAPIWallet(address) {
+        console.log(`📤 Регистрируем API Wallet: ${address}`);
+        try {
+            const timestamp = Date.now();
+            const agentAction = {
+                type: "ApproveAgent",
+                agent: address,
+                expiry: timestamp + 7 * 24 * 60 * 60 * 1000, // 7 дней
+            };
+
+            const signatureRaw = await window.ethereum.request({
+                method: "eth_signTypedData_v4",
+                params: [address, JSON.stringify({
+                    domain: {
+                        name: "HyperliquidSignTransaction",
+                        version: "1",
+                        chainId: 42161,
+                        verifyingContract: "0x0000000000000000000000000000000000000000",
+                    },
+                    types: {
+                        ApproveAgent: [
+                            { name: "agent", type: "string" },
+                            { name: "expiry", type: "uint64" },
+                        ],
+                    },
+                    primaryType: "ApproveAgent",
+                    message: agentAction,
+                })],
+            });
+
+            console.log("✅ Подпись для регистрации получена:", signatureRaw);
+
+            const requestBody = {
+                action: agentAction,
+                nonce: timestamp,
+                signature: signatureRaw,
+            };
+
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
+            });
+
+            const responseJson = await response.json();
+            console.log("📩 Ответ API на регистрацию API Wallet:", responseJson);
+
+            return responseJson.status === "ok";
+        } catch (error) {
+            console.error("❌ Ошибка при регистрации API Wallet:", error);
+            return false;
+        }
+    }
+
+    // 📌 Проверка баланса
+    async function fetchBalance(address) {
+        console.log("🔍 Запрашиваем баланс для:", address);
+        try {
+            const response = await fetch(INFO_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "clearinghouseState", user: address }),
             });
 
             const data = await response.json();
             console.log("📩 Баланс Hyperliquid:", data);
 
-            if (data && data.withdrawable) {
-                balanceField.innerText = `Balance: ${data.withdrawable} USDC`;
-                console.log(`✅ Доступный баланс: ${data.withdrawable} USDC`);
-            } else {
-                balanceField.innerText = "Balance: 0 USDC";
-                console.warn("❌ Баланс не найден!");
-            }
+            balanceField.innerText = `Balance: ${data.withdrawable || "0"} USDC`;
         } catch (error) {
             console.error("❌ Ошибка при получении баланса:", error);
             balanceField.innerText = "❌ Failed to fetch balance";
         }
     }
 
-    // 📌 Выполняем вывод
+    // 📌 Отправка `withdraw3`
     withdrawButton.addEventListener("click", async () => {
         if (!userAddress) {
             status.innerText = "❌ Please connect wallet first!";
-            console.error("❌ No connected wallet!");
             return;
         }
 
-        console.log("🔍 Адрес из MetaMask:", userAddress);
+        console.log("🔍 Проверяем регистрацию API Wallet...");
+        const isRegistered = await checkAPIWalletRegistration(userAddress);
+
+        if (!isRegistered) {
+            console.warn("⚠️ API Wallet не зарегистрирован! Регистрируем...");
+            const registrationSuccess = await registerAPIWallet(userAddress);
+            if (!registrationSuccess) {
+                status.innerText = "❌ Ошибка при регистрации API Wallet!";
+                return;
+            }
+            console.log("✅ API Wallet зарегистрирован! Продолжаем...");
+        }
 
         const amountInput = document.getElementById("amount").value.trim();
         if (!amountInput || amountInput <= 0) {
             status.innerText = "❌ Enter a valid amount!";
-            console.error("❌ Invalid withdrawal amount!");
             return;
         }
 
-        const amount = parseFloat(amountInput).toFixed(2); // ✅ Делаем float, как требует API
-
-        // ✅ Формируем action для `withdraw3`
+        const amount = parseFloat(amountInput).toFixed(2);
         const timestamp = Date.now();
         const action = {
-            type: "withdraw3", // ✅ API требует именно `withdraw3`
+            type: "withdraw3",
             hyperliquidChain: "Mainnet",
-            signatureChainId: "0xa4b1", // ✅ Arbitrum (из документации)
-            destination: userAddress,  // ✅ Адрес из MetaMask
-            amount: amount.toString(), // ✅ API требует строку
-            time: timestamp, // ✅ Должен совпадать с `nonce`
+            signatureChainId: "0xa4b1",
+            destination: userAddress,
+            amount: amount.toString(),
+            time: timestamp,
         };
 
         console.log("📤 Данные для подписи:", JSON.stringify(action, null, 2));
@@ -111,12 +182,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         verifyingContract: "0x0000000000000000000000000000000000000000",
                     },
                     types: {
-                        EIP712Domain: [
-                            { name: "name", type: "string" },
-                            { name: "version", type: "string" },
-                            { name: "chainId", type: "uint256" },
-                            { name: "verifyingContract", type: "address" },
-                        ],
                         HyperliquidTransactionWithdraw: [
                             { name: "hyperliquidChain", type: "string" },
                             { name: "signatureChainId", type: "string" },
@@ -132,21 +197,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signatureRaw);
 
-            // ✅ Разбиваем подпись на `r`, `s`, `v`
-            const r = signatureRaw.slice(0, 66);
-            const s = "0x" + signatureRaw.slice(66, 130);
-            const v = parseInt(signatureRaw.slice(130, 132), 16) + 27;
-
-            // ✅ Формируем финальный JSON-запрос
             const requestBody = {
                 action: action,
-                nonce: timestamp, // ✅ Должен совпадать с `time`
-                signature: { r, s, v },
+                nonce: timestamp,
+                signature: signatureRaw,
             };
 
-            console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
-
-            // 📌 Отправляем запрос на вывод
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -154,18 +210,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             const responseJson = await response.json();
-            console.log("📩 Ответ от API:", responseJson);
+            console.log("📩 Ответ API:", responseJson);
 
-            if (responseJson.status === "ok") {
-                status.innerText = "✅ Вывод успешно отправлен!";
-                console.log("✅ Успешный вывод!");
-                await fetchBalance(userAddress); // ✅ Обновляем баланс после вывода
-            } else {
-                status.innerText = `❌ Ошибка при выводе: ${responseJson.response}`;
-                console.error("❌ Ошибка при выводе:", responseJson.response);
-            }
+            status.innerText = responseJson.status === "ok" ? "✅ Вывод успешно отправлен!" : `❌ Ошибка: ${responseJson.response}`;
         } catch (error) {
-            console.error("❌ Ошибка при подписании или отправке запроса:", error);
+            console.error("❌ Ошибка при выводе:", error);
             status.innerText = "❌ Ошибка при отправке вывода!";
         }
     });
