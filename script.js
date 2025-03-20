@@ -66,6 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 signatureChainId: "0x66eee",
                 destination: formattedDestination, 
                 amount: amount.toString(),
+                asset: "USDC",
                 time: timestamp,
                 type: "withdraw3"
             };
