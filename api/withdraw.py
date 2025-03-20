@@ -1,32 +1,26 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import ccxt
+const ccxt = require('ccxt');
 
-app = Flask(__name__)
-CORS(app)  # Разрешаем запросы с фронтенда
+module.exports = async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
 
-@app.route('/withdraw', methods=['POST'])
-def withdraw():
-    data = request.json
-    api_key = data.get("apiKey")
-    api_secret = data.get("apiSecret")
-    amount = float(data.get("amount"))
-    destination = data.get("destination")
+    try {
+        const { apiKey, apiSecret, amount, destination } = req.body;
 
-    if not api_key or not api_secret or not amount or not destination:
-        return jsonify({"error": "Missing required parameters"}), 400
+        if (!apiKey || !apiSecret || !amount || !destination) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
 
-    try:
-        exchange = ccxt.hyperliquid({
-            'apiKey': api_key,
-            'secret': api_secret
-        })
+        const exchange = new ccxt.hyperliquid({
+            apiKey,
+            secret: apiSecret
+        });
 
-        if not exchange.has['withdraw']:
-            return jsonify({"error": "Withdrawals not supported on this exchange"}), 400
+        const withdrawal = await exchange.withdraw("USDC", parseFloat(amount), destination, undefined, { network: 'ARBITRUM' });
 
-        withdrawal = exchange.withdraw("USDC", amount, destination, None, {'network': 'ARBITRUM'})
-        
-        return jsonify({"message": "Withdraw successful", "data": withdrawal}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return res.status(200).json({ message: 'Withdraw successful', data: withdrawal });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};
