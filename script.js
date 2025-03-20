@@ -5,18 +5,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const walletAddressField = document.getElementById("walletAddress");
     let userAddress = null;
 
-    const API_URL = "/api/withdraw";  // Vercel Serverless API
+    // ✅ Проверяем HTTPS
+    if (location.protocol !== 'https:') {
+        location.replace(`https:${location.href.substring(location.protocol.length)}`);
+    }
 
+    // ✅ Подключаем Web3
     if (typeof window.ethereum !== "undefined") {
         console.log("✅ MetaMask detected");
-        window.web3 = new Web3(window.ethereum);
+        window.web3 = new Web3(window.ethereum); // ✅ Создаём web3 вручную
     } else {
         console.error("❌ MetaMask not detected");
         status.innerText = "❌ MetaMask not detected. Please install it.";
         return;
     }
 
-    // Подключение MetaMask
+    // 🔹 Подключение MetaMask
     connectWalletButton.addEventListener("click", async () => {
         try {
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
@@ -26,51 +30,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.log("✅ Wallet connected:", userAddress);
         } catch (error) {
             console.error("❌ Wallet connection failed:", error);
-            status.innerText = "❌ Failed to connect wallet.";
+            status.innerText = `❌ MetaMask connection failed: ${error.message}`;
         }
     });
 
-    withdrawButton.addEventListener("click", async () => {
-        if (!userAddress) {
-            status.innerText = "❌ Please connect wallet first!";
-            return;
+    // 🔹 Проверяем аккаунты
+    window.ethereum.on("accountsChanged", (accounts) => {
+        if (accounts.length === 0) {
+            console.log("🔴 Disconnected from MetaMask");
+            status.innerText = "❌ Wallet disconnected!";
+            userAddress = null;
+            withdrawButton.disabled = true;
+        } else {
+            userAddress = accounts[0];
+            walletAddressField.innerText = `Wallet: ${userAddress}`;
+            withdrawButton.disabled = false;
+            console.log("✅ Wallet switched:", userAddress);
         }
+    });
 
-        const apiKey = document.getElementById("apiKey").value;
-        const apiSecret = document.getElementById("apiSecret").value;
-        const amount = document.getElementById("amount").value;
-
-        if (!apiKey || !apiSecret || !amount || amount <= 0) {
-            status.innerText = "❌ Enter API Key, Secret, and a valid Amount!";
-            return;
-        }
-
-        try {
-            // Отправляем данные на Vercel Backend API
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    apiKey,
-                    apiSecret,
-                    amount,
-                    destination: userAddress
-                })
-            });
-
-            const responseData = await response.json();
-            console.log("📩 Ответ от API:", responseData);
-
-            if (response.ok) {
-                status.innerText = "✅ Withdraw successful!";
-            } else {
-                status.innerText = `❌ Error: ${responseData.message || "Unknown error"}`;
-            }
-        } catch (error) {
-            console.error("❌ Ошибка при выводе:", error);
-            status.innerText = `❌ Error: ${error.message}`;
+    // 🔹 Проверяем сеть (должна быть Arbitrum)
+    window.ethereum.on("chainChanged", (chainId) => {
+        console.log("🔗 Chain changed:", chainId);
+        if (chainId !== "0xa4b1") {
+            status.innerText = "⚠️ Switch to Arbitrum Network in MetaMask!";
         }
     });
 });
