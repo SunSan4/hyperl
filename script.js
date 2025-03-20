@@ -83,69 +83,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // 📌 Регистрация API Wallet
-    async function registerAPIWallet(address) {
-        console.log(`📤 Регистрируем API Wallet: ${address}`);
-
-        try {
-            const timestamp = Math.floor(Date.now() / 1000); // Expiry в секундах
-            const expiry = timestamp + 7 * 24 * 60 * 60; // 7 дней
-
-            const agentAction = {
-                type: "ApproveAgent",
-                agent: address,
-                expiry: expiry,
-            };
-
-            const domain = {
-                name: "HyperliquidSignTransaction",
-                version: "1",
-                chainId: 42161,
-                verifyingContract: "0x0000000000000000000000000000000000000000",
-            };
-
-            const types = {
-                ApproveAgent: [
-                    { name: "agent", type: "address" },
-                    { name: "expiry", type: "uint64" },
-                ],
-            };
-
-            const signatureRaw = await window.ethereum.request({
-                method: "eth_signTypedData_v4",
-                params: [address, JSON.stringify({ domain, types, primaryType: "ApproveAgent", message: agentAction })],
-            });
-
-            console.log("✅ Подпись для регистрации получена:", signatureRaw);
-
-            const r = signatureRaw.slice(0, 66);
-            const s = "0x" + signatureRaw.slice(66, 130);
-            const v = parseInt(signatureRaw.slice(130, 132), 16);
-
-            const requestBody = {
-                action: agentAction,
-                nonce: timestamp,
-                signature: { r, s, v },
-            };
-
-            console.log("📤 Запрос на регистрацию API Wallet:", JSON.stringify(requestBody, null, 2));
-
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(requestBody),
-            });
-
-            const responseJson = await response.json();
-            console.log("📩 Ответ API на регистрацию API Wallet:", responseJson);
-
-            return responseJson.status === "ok";
-        } catch (error) {
-            console.error("❌ Ошибка при регистрации API Wallet:", error);
-            return false;
-        }
-    }
-
     // 📌 Отправка `withdraw3`
     withdrawButton.addEventListener("click", async () => {
         if (!userAddress) {
@@ -157,13 +94,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const isRegistered = await checkAPIWalletRegistration(userAddress);
 
         if (!isRegistered) {
-            console.warn("⚠️ API Wallet не зарегистрирован! Регистрируем...");
-            const registrationSuccess = await registerAPIWallet(userAddress);
-            if (!registrationSuccess) {
-                status.innerText = "❌ Ошибка при регистрации API Wallet!";
-                return;
-            }
-            console.log("✅ API Wallet зарегистрирован! Продолжаем...");
+            console.warn("⚠️ API Wallet не зарегистрирован! Попробуйте зарегистрировать его через Hyperliquid.");
+            return;
         }
 
         const amountInput = document.getElementById("amount").value.trim();
@@ -212,11 +144,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             console.log("✅ Подпись получена:", signatureRaw);
 
+            const r = signatureRaw.slice(0, 66);
+            const s = "0x" + signatureRaw.slice(66, 130);
+            const v = parseInt(signatureRaw.slice(130, 132), 16);
+
             const requestBody = {
                 action: action,
                 nonce: timestamp,
-                signature: signatureRaw,
+                signature: { r, s, v }, // ✅ Ожидаемый формат
             };
+
+            console.log("📤 Итоговый JSON-запрос (сравни с CCXT):", JSON.stringify(requestBody, null, 2));
 
             const response = await fetch(API_URL, {
                 method: "POST",
