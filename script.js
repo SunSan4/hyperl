@@ -43,23 +43,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         console.log("🔍 Адрес из MetaMask:", userAddress);
 
-        const amount = document.getElementById("amount").value.trim();
-        if (!amount || amount <= 0) {
+        const amountInput = document.getElementById("amount").value.trim();
+        if (!amountInput || amountInput <= 0) {
             status.innerText = "❌ Enter a valid amount!";
             console.error("❌ Invalid withdrawal amount!");
             return;
         }
 
-        // ✅ Определяем тип запроса (вывод из `vault` или обычный `withdraw3`)
-        let action, signature;
-        const timestamp = Date.now();
+        const amount = parseFloat(amountInput).toFixed(2); // ✅ Делаем float c 2 знаками после запятой
 
-        console.log("🔹 Используем обычный `withdraw3`");
-        action = {
+        // ✅ Формируем action
+        const timestamp = Date.now();
+        const action = {
             hyperliquidChain: "Mainnet",
             signatureChainId: "0x66eee",
             destination: userAddress,
-            amount: amount.toString(),
+            amount: amount,  // ✅ Отправляем float, а не строку
             time: timestamp,
             type: "withdraw3",
         };
@@ -67,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("📤 Данные для подписи:", JSON.stringify(action, null, 2));
 
         try {
-            signature = await window.ethereum.request({
+            const signatureRaw = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
                 params: [userAddress, JSON.stringify({
                     domain: {
@@ -95,13 +94,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 })],
             });
 
-            console.log("✅ Подпись получена:", signature);
+            console.log("✅ Подпись получена:", signatureRaw);
+
+            // ✅ Разбиваем подпись на `r`, `s`, `v`
+            const r = signatureRaw.slice(0, 66);
+            const s = "0x" + signatureRaw.slice(66, 130);
+            const v = parseInt(signatureRaw.slice(130, 132), 16) + 27;
 
             // ✅ Формируем финальный JSON-запрос
             const requestBody = {
                 action: action,
                 nonce: timestamp,
-                signature: signature,
+                signature: { r, s, v }, // ✅ Теперь `signature` — объект
             };
 
             console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
