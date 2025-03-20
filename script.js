@@ -46,60 +46,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            // Данные для вывода
+            // Формируем JSON, похожий на CCXT
             const withdrawData = {
-                destination: userAddress,  // Отправляем средства на адрес MetaMask
-                amount: parseFloat(amount), // ✅ Число, а не строка
-                time: Date.now(),
-                type: "withdraw", // ✅ Должно быть "withdraw"
-                signatureChainId: "0xa4b1",
-                hyperliquidChain: "Mainnet"
+                type: "withdraw", // ✅ Тип операции, аналогично CCXT
+                user: userAddress, // ✅ Адрес пользователя
+                delta: {
+                    type: "accountClassTransfer",
+                    usdc: amount.toString(), // ✅ Сумма в USDC
+                    toPerp: false // ✅ Не переводим на Perp
+                },
+                time: Date.now()
             };
 
-            // Домен и типы для подписи EIP-712
-            const domain = {
-                name: "HyperliquidSignTransaction",
-                version: "1",
-                chainId: 42161,
-                verifyingContract: "0x0000000000000000000000000000000000000000"
-            };
+            console.log("📤 Запрос перед отправкой:", JSON.stringify(withdrawData, null, 2));
 
-            const types = {
-                EIP712Domain: [
-                    { name: "name", type: "string" },
-                    { name: "version", type: "string" },
-                    { name: "chainId", type: "uint256" },
-                    { name: "verifyingContract", type: "address" }
-                ],
-                Withdraw: [
-                    { name: "destination", type: "string" },
-                    { name: "amount", type: "number" }, // ✅ Должно быть числом
-                    { name: "time", type: "uint64" },
-                    { name: "type", type: "string" },
-                    { name: "signatureChainId", type: "string" },
-                    { name: "hyperliquidChain", type: "string" }
-                ]
-            };
-
-            // Подписываем транзакцию через MetaMask
+            // Подписываем данные через MetaMask (EIP-712)
             const signature = await window.ethereum.request({
                 method: "eth_signTypedData_v4",
-                params: [userAddress, JSON.stringify({ domain, types, primaryType: "Withdraw", message: withdrawData })]
+                params: [userAddress, JSON.stringify(withdrawData)]
             });
 
             console.log("✅ Подпись получена:", signature);
 
-            // Создаём JSON-запрос
+            // Создаём JSON-запрос, как в CCXT
             const requestBody = {
-                type: "withdraw", // ✅ Должно быть "withdraw"
+                type: "withdraw",
                 message: withdrawData,
                 signature: signature
             };
 
-            // Выводим JSON-запрос в консоль
-            console.log("📤 Запрос в Hyperliquid API:", JSON.stringify(requestBody, null, 2));
+            console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
 
-            // Отправляем запрос на Hyperliquid API
+            // Отправляем запрос в Hyperliquid API
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
@@ -110,7 +88,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 body: JSON.stringify(requestBody)
             });
 
-            // Проверяем JSON-ответ
             const responseText = await response.text();
             try {
                 const responseData = JSON.parse(responseText);
