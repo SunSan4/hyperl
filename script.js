@@ -42,8 +42,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const requestBody = {
-            type: "userBalances",
-            user: userAddress  // ✅ Используем правильный userAddress
+            type: "perpUserState",  // ✅ Используем правильный API-запрос
+            user: userAddress
         };
 
         console.log("📤 Отправляем запрос на баланс:", JSON.stringify(requestBody, null, 2));
@@ -64,7 +64,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const responseJson = await response.json();
             console.log("📩 Ответ от API (баланс):", responseJson);
 
-            return responseJson.withdrawable ? parseFloat(responseJson.withdrawable) : 0;
+            // ✅ Извлекаем баланс USDC (он может храниться в "accountValue")
+            const usdcBalance = responseJson?.accountValue || 0;
+            return parseFloat(usdcBalance);
         } catch (error) {
             console.error("❌ Ошибка при запросе баланса:", error);
             return 0;
@@ -126,14 +128,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                             { name: "chainId", type: "uint256" },
                             { name: "verifyingContract", type: "address" },
                         ],
-                        HyperliquidTransactionWithdraw: [  // ✅ Убрали `:` в названии типа
+                        HyperliquidTransactionWithdraw: [
                             { name: "hyperliquidChain", type: "string" },
                             { name: "destination", type: "string" },
                             { name: "amount", type: "string" },
                             { name: "time", type: "uint64" },
                         ],
                     },
-                    primaryType: "HyperliquidTransactionWithdraw", // ✅ Тоже убрали `:` здесь
+                    primaryType: "HyperliquidTransactionWithdraw",
                     message: action,
                 })],
             });
