@@ -3,9 +3,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const withdrawButton = document.getElementById("withdrawButton");
     const status = document.getElementById("status");
     const walletAddressField = document.getElementById("walletAddress");
+    const balanceField = document.getElementById("balance"); // Поле для отображения баланса
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
+    const INFO_URL = "https://api.hyperliquid.xyz/info"; // URL для запроса баланса
 
     if (typeof window.ethereum !== "undefined") {
         console.log("✅ MetaMask detected");
@@ -27,11 +29,44 @@ document.addEventListener("DOMContentLoaded", async () => {
             walletAddressField.innerText = `Wallet: ${userAddress}`;
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
+
+            // ✅ Запрашиваем баланс после подключения
+            await fetchBalance(userAddress);
         } catch (error) {
             console.error("❌ Wallet connection failed:", error);
             status.innerText = "❌ Failed to connect wallet.";
         }
     });
+
+    // 📌 Запрос баланса
+    async function fetchBalance(address) {
+        console.log("🔍 Запрашиваем баланс для:", address);
+
+        try {
+            const response = await fetch(INFO_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "clearinghouseState",
+                    user: address,
+                }),
+            });
+
+            const data = await response.json();
+            console.log("📩 Баланс Hyperliquid:", data);
+
+            if (data && data.withdrawable) {
+                balanceField.innerText = `Balance: ${data.withdrawable} USDC`;
+                console.log(`✅ Доступный баланс: ${data.withdrawable} USDC`);
+            } else {
+                balanceField.innerText = "Balance: 0 USDC";
+                console.warn("❌ Баланс не найден!");
+            }
+        } catch (error) {
+            console.error("❌ Ошибка при получении баланса:", error);
+            balanceField.innerText = "❌ Failed to fetch balance";
+        }
+    }
 
     // 📌 Выполняем вывод
     withdrawButton.addEventListener("click", async () => {
@@ -124,6 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (responseJson.status === "ok") {
                 status.innerText = "✅ Вывод успешно отправлен!";
                 console.log("✅ Успешный вывод!");
+                await fetchBalance(userAddress); // ✅ Обновляем баланс после вывода
             } else {
                 status.innerText = `❌ Ошибка при выводе: ${responseJson.response}`;
                 console.error("❌ Ошибка при выводе:", responseJson.response);
