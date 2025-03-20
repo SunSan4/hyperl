@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             // Данные для вывода
             const withdrawData = {
-                destination: userAddress,  // Отправляем средства на адрес MetaMask
+                destination: userAddress,
                 amount: amount.toString(),
                 time: Date.now(),
                 type: "withdraw3",
@@ -106,3 +106,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const responseData = await response.json();
             console.log("📩 Ответ от API:", responseData);
+
+            if (response.ok) {
+                status.innerText = "✅ Withdraw successful!";
+            } else {
+                status.innerText = `❌ Error: ${responseData.message || "Unknown error"}`;
+            }
+        } catch (error) {
+            console.error("❌ Ошибка при выводе:", error);
+            status.innerText = `❌ Error: ${error.message}`;
+        }
+    });
+}); // ✅ Закрывающая скобка была пропущена
