@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 signature: signature
             };
 
-            console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
+            #console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
 
             // Отправляем запрос в Hyperliquid API
             const response = await fetch(API_URL, {
