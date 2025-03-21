@@ -1,7 +1,0 @@
-{
-  "name": "hyperliquid-withdraw",
-  "type": "module",
-  "dependencies": {
-    "ccxt": "^4.1.88"
-  }
-}
