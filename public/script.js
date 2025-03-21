@@ -1,3 +1,4 @@
+
 document.getElementById("connectWallet").addEventListener("click", connectWallet);
 document.getElementById("withdrawButton").addEventListener("click", withdrawFunds);
 
@@ -50,7 +51,7 @@ async function withdrawFunds() {
 
     const data = await res.json();
     if (data.status === "ok") {
-        alert(`✅ Вывод ${amount} USDC отправлен`);
+        alert(`✅ Успешно выведено ${amount} USDC`);
         fetchBalance(userAddress);
     } else {
         alert(`❌ Ошибка: ${data.error || JSON.stringify(data)}`);
