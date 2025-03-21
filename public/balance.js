@@ -5,8 +5,8 @@
     <title>Hyperliquid Withdraw</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.5/web3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-    <script defer src="/scripts/script.js"></script>
-    <script defer src="/scripts/balance.js"></script>
+    <script defer src="script.js"></script>
+    <script defer src="balance.js"></script>
 </head>
 <body>
     <h2>Hyperliquid Withdraw</h2>
