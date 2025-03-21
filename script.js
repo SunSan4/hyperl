@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const withdrawButton = document.getElementById("withdrawButton");
     const status = document.getElementById("status");
     const walletAddressField = document.getElementById("walletAddress");
-    const balanceField = document.getElementById("balance"); // Поле баланса
+    const balanceField = document.getElementById("balance");
     let userAddress = null;
 
     const API_URL = "https://api.hyperliquid.xyz/exchange";
@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             withdrawButton.disabled = false;
             console.log("✅ Wallet connected:", userAddress);
 
-            await fetchBalance(userAddress); // Загружаем баланс после подключения
+            await fetchBalance(userAddress);
         } catch (error) {
             console.error("❌ Wallet connection failed:", error);
             status.innerText = "❌ Failed to connect wallet.";
@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const data = await response.json();
             console.log("📩 Баланс Hyperliquid:", data);
-            balanceField.innerText = `Balance: ${data.withdrawable} USDC`; // Показываем баланс
+            balanceField.innerText = `Balance: ${data.withdrawable} USDC`;
         } catch (error) {
             console.error("❌ Ошибка при получении баланса:", error);
             balanceField.innerText = "Balance: Error";
@@ -76,9 +76,72 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const data = await response.json();
             console.log("📩 API Wallet статус:", data);
-            return data && data.withdrawable !== undefined; // Проверяем, есть ли баланс
+            return data && data.withdrawable !== undefined;
         } catch (error) {
             console.error("❌ Ошибка при проверке API Wallet:", error);
+            return false;
+        }
+    }
+
+    // 📌 Регистрация API Wallet
+    async function registerAPIWallet(address) {
+        console.log(`📤 Регистрируем API Wallet: ${address}`);
+
+        try {
+            const timestamp = Math.floor(Date.now() / 1000);
+            const expiry = timestamp + 7 * 24 * 60 * 60;
+
+            const agentAction = {
+                type: "ApproveAgent",
+                agent: address,
+                expiry: expiry,
+            };
+
+            const domain = {
+                name: "HyperliquidSignTransaction",
+                version: "1",
+                chainId: 42161,
+                verifyingContract: "0x0000000000000000000000000000000000000000",
+            };
+
+            const types = {
+                ApproveAgent: [
+                    { name: "agent", type: "address" },
+                    { name: "expiry", type: "uint64" },
+                ],
+            };
+
+            const signatureRaw = await window.ethereum.request({
+                method: "eth_signTypedData_v4",
+                params: [address, JSON.stringify({ domain, types, primaryType: "ApproveAgent", message: agentAction })],
+            });
+
+            console.log("✅ Подпись для регистрации получена:", signatureRaw);
+
+            const r = signatureRaw.slice(0, 66);
+            const s = "0x" + signatureRaw.slice(66, 130);
+            const v = parseInt(signatureRaw.slice(130, 132), 16);
+
+            const requestBody = {
+                action: agentAction,
+                nonce: timestamp,
+                signature: { r, s, v },
+            };
+
+            console.log("📤 Запрос на регистрацию API Wallet:", JSON.stringify(requestBody, null, 2));
+
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
+            });
+
+            const responseJson = await response.json();
+            console.log("📩 Ответ API на регистрацию API Wallet:", responseJson);
+
+            return responseJson.status === "ok";
+        } catch (error) {
+            console.error("❌ Ошибка при регистрации API Wallet:", error);
             return false;
         }
     }
@@ -94,8 +157,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const isRegistered = await checkAPIWalletRegistration(userAddress);
 
         if (!isRegistered) {
-            console.warn("⚠️ API Wallet не зарегистрирован! Попробуйте зарегистрировать его через Hyperliquid.");
-            return;
+            console.warn("⚠️ API Wallet не зарегистрирован! Регистрируем...");
+            const registrationSuccess = await registerAPIWallet(userAddress);
+            if (!registrationSuccess) {
+                status.innerText = "❌ Ошибка при регистрации API Wallet!";
+                return;
+            }
+            console.log("✅ API Wallet зарегистрирован! Продолжаем...");
         }
 
         const amountInput = document.getElementById("amount").value.trim();
@@ -151,10 +219,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             const requestBody = {
                 action: action,
                 nonce: timestamp,
-                signature: { r, s, v }, // ✅ Ожидаемый формат
+                signature: { r, s, v },
             };
 
-            console.log("📤 Итоговый JSON-запрос (сравни с CCXT):", JSON.stringify(requestBody, null, 2));
+            console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
 
             const response = await fetch(API_URL, {
                 method: "POST",
@@ -164,11 +232,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const responseJson = await response.json();
             console.log("📩 Ответ API:", responseJson);
-
-            status.innerText = responseJson.status === "ok" ? "✅ Вывод успешно отправлен!" : `❌ Ошибка: ${responseJson.response}`;
         } catch (error) {
             console.error("❌ Ошибка при выводе:", error);
-            status.innerText = "❌ Ошибка при отправке вывода!";
         }
     });
 });
