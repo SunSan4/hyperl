@@ -16,7 +16,7 @@ async function connectWallet() {
 
     document.getElementById("withdrawButton").disabled = false;
 
-    fetchBalance(userAddress);
+    await fetchBalance(userAddress);
     await checkAPIWalletRegistration(userAddress);
 }
 
@@ -33,6 +33,11 @@ async function checkAPIWalletRegistration(address) {
             })
         });
 
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`❌ Ошибка API: ${res.status}\n${text}`);
+        }
+
         const data = await res.json();
         console.log("📩 Ответ от API:", data);
 
@@ -48,7 +53,7 @@ async function checkAPIWalletRegistration(address) {
 }
 
 async function registerAPIWallet(agentAddress) {
-    const nonce = Math.floor(Date.now());
+    const nonce = Date.now();
     const payload = {
         type: "approveAgent",
         hyperliquidChain: "Mainnet",
@@ -68,12 +73,19 @@ async function registerAPIWallet(agentAddress) {
         signature: signature
     };
 
+    console.log("📤 Запрос на регистрацию API Wallet:", JSON.stringify(requestBody, null, 2));
+
     try {
         const res = await fetch("https://api.hyperliquid.xyz/exchange", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody)
         });
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Ошибка регистрации API Wallet: ${res.status} ${text}`);
+        }
 
         const data = await res.json();
         console.log("📩 Ответ на регистрацию:", data);
@@ -102,7 +114,7 @@ async function withdrawFunds() {
         time: timestamp
     };
 
-    console.log("📤 Данные для подписи:", action);
+    console.log("📤 Данные для подписи: ", action);
 
     const signature = await signTypedData(userAddress, action, "Withdraw");
 
@@ -181,4 +193,24 @@ async function signTypedData(from, message, typeName) {
         s: "0x" + signatureHex.slice(66, 130),
         v: parseInt(signatureHex.slice(130, 132), 16)
     };
+}
+
+async function fetchBalance(address) {
+    try {
+        const res = await fetch("https://api.hyperliquid.xyz/info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "clearinghouseState",
+                user: address
+            })
+        });
+
+        const data = await res.json();
+        const balance = data?.withdrawable || "0.00";
+        document.getElementById("balance").innerText = `Balance: ${balance} USDC`;
+        console.log("📩 Баланс:", balance);
+    } catch (err) {
+        console.error("❌ Ошибка при получении баланса:", err);
+    }
 }
