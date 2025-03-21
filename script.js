@@ -3,7 +3,6 @@ document.getElementById("withdrawButton").addEventListener("click", withdrawFund
 
 let userAddress = "";
 
-// 📌 Подключаем MetaMask
 async function connectWallet() {
     if (!window.ethereum) {
         alert("🦊 Установи MetaMask!");
@@ -13,90 +12,173 @@ async function connectWallet() {
     const accounts = await ethereum.request({ method: "eth_requestAccounts" });
     userAddress = accounts[0];
     document.getElementById("walletAddress").innerText = `🔗 Wallet: ${userAddress}`;
-    console.log("✅ Подключен кошелек:", userAddress);
+    console.log("✅ Wallet connected:", userAddress);
 
-    // Включаем кнопку вывода
     document.getElementById("withdrawButton").disabled = false;
 
-    // Загружаем баланс после подключения
     fetchBalance(userAddress);
+    await checkAPIWalletRegistration(userAddress);
 }
 
-// 📌 Отправляем запрос на вывод
+async function checkAPIWalletRegistration(address) {
+    console.log("🔍 Проверяем регистрацию API Wallet...");
+
+    try {
+        const res = await fetch("https://api.hyperliquid.xyz/info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "agentRegistered",
+                user: address
+            })
+        });
+
+        const data = await res.json();
+        console.log("📩 Ответ от API:", data);
+
+        if (!data || !data.registered) {
+            console.warn("⚠️ API Wallet не зарегистрирован! Регистрируем...");
+            await registerAPIWallet(address);
+        } else {
+            console.log("✅ API Wallet уже зарегистрирован.");
+        }
+    } catch (err) {
+        console.error("❌ Ошибка при проверке API Wallet:", err);
+    }
+}
+
+async function registerAPIWallet(agentAddress) {
+    const nonce = Math.floor(Date.now());
+    const payload = {
+        type: "approveAgent",
+        hyperliquidChain: "Mainnet",
+        signatureChainId: "0xa4b1",
+        agentAddress: agentAddress,
+        agentName: "MyAgent",
+        nonce: nonce
+    };
+
+    console.log("📤 Регистрируем API Wallet:", agentAddress);
+
+    const signature = await signTypedData(agentAddress, payload, "ApproveAgent");
+
+    const requestBody = {
+        action: payload,
+        nonce: nonce,
+        signature: signature
+    };
+
+    try {
+        const res = await fetch("https://api.hyperliquid.xyz/exchange", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await res.json();
+        console.log("📩 Ответ на регистрацию:", data);
+    } catch (err) {
+        console.error("❌ Ошибка при регистрации API Wallet:", err);
+    }
+}
+
 async function withdrawFunds() {
     const apiKey = document.getElementById("apiKey").value.trim();
     const apiSecret = document.getElementById("apiSecret").value.trim();
     const amount = document.getElementById("amount").value.trim();
 
-    if (!apiKey || !apiSecret) {
-        alert("❌ Введите API Key и Secret!");
+    if (!apiKey || !apiSecret || !amount) {
+        alert("❗ Введите все данные");
         return;
     }
-    if (!amount || amount <= 0) {
-        alert("❌ Введите сумму для вывода!");
-        return;
-    }
-
-    console.log("📤 Готовим вывод:", amount, "USDC");
 
     const timestamp = Date.now();
-    const withdrawalAction = {
+    const action = {
         type: "withdraw3",
         hyperliquidChain: "Mainnet",
         signatureChainId: "0xa4b1",
-        destination: userAddress, // Выводим на кошелек MetaMask
-        amount: amount.toString(),
-        time: timestamp,
+        destination: userAddress,
+        amount: amount,
+        time: timestamp
     };
 
-    console.log("📤 Данные для подписи:", withdrawalAction);
+    console.log("📤 Данные для подписи:", action);
+
+    const signature = await signTypedData(userAddress, action, "Withdraw");
+
+    const requestBody = {
+        action: action,
+        nonce: timestamp,
+        signature: signature
+    };
+
+    console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
 
     try {
-        const signatureRaw = await window.ethereum.request({
-            method: "eth_signTypedData_v4",
-            params: [userAddress, JSON.stringify({
-                domain: { name: "HyperliquidSignTransaction", version: "1", chainId: 42161, verifyingContract: "0x0000000000000000000000000000000000000000" },
-                types: { Withdraw: [{ name: "destination", type: "address" }, { name: "amount", type: "string" }, { name: "time", type: "uint64" }] },
-                primaryType: "Withdraw",
-                message: withdrawalAction
-            })]
-        });
-
-        console.log("✅ Подпись получена:", signatureRaw);
-
-        const r = signatureRaw.slice(0, 66);
-        const s = "0x" + signatureRaw.slice(66, 130);
-        const v = parseInt(signatureRaw.slice(130, 132), 16);
-
-        const requestBody = {
-            action: withdrawalAction,
-            nonce: timestamp,
-            signature: { r, s, v },
-        };
-
-        console.log("📤 Итоговый JSON-запрос:", JSON.stringify(requestBody, null, 2));
-
-        const response = await fetch("https://api.hyperliquid.xyz/exchange", {
+        const res = await fetch("https://api.hyperliquid.xyz/exchange", {
             method: "POST",
-            headers: { 
+            headers: {
                 "Content-Type": "application/json",
-                "x-api-key": apiKey, 
-                "x-api-secret": apiSecret 
+                "x-api-key": apiKey,
+                "x-api-secret": apiSecret
             },
-            body: JSON.stringify(requestBody),
+            body: JSON.stringify(requestBody)
         });
 
-        const responseJson = await response.json();
-        console.log("📩 Ответ API:", responseJson);
+        const data = await res.json();
+        console.log("📩 Ответ API:", data);
 
-        if (responseJson.status === "ok") {
-            alert(`✅ Успешный вывод: ${amount} USDC`);
-            fetchBalance(userAddress); // Обновляем баланс
+        if (data.status === "ok") {
+            alert(`✅ Вывод ${amount} USDC успешно отправлен`);
+            fetchBalance(userAddress);
         } else {
-            alert(`❌ Ошибка вывода: ${responseJson.response}`);
+            alert(`❌ Ошибка: ${data.response}`);
         }
-    } catch (error) {
-        console.error("❌ Ошибка:", error);
-        alert("❌ Ошибка при отправке запроса!");
+    } catch (err) {
+        console.error("❌ Ошибка при выводе:", err);
     }
+}
+
+async function signTypedData(from, message, typeName) {
+    const domain = {
+        name: "HyperliquidSignTransaction",
+        version: "1",
+        chainId: 42161,
+        verifyingContract: "0x0000000000000000000000000000000000000000"
+    };
+
+    const types = {
+        [typeName]: Object.entries(message).map(([key, val]) => ({
+            name: key,
+            type: typeof val === "number" ? "uint64" : "string"
+        }))
+    };
+
+    const data = {
+        domain,
+        types: {
+            EIP712Domain: [
+                { name: "name", type: "string" },
+                { name: "version", type: "string" },
+                { name: "chainId", type: "uint256" },
+                { name: "verifyingContract", type: "address" }
+            ],
+            ...types
+        },
+        primaryType: typeName,
+        message
+    };
+
+    const signatureHex = await window.ethereum.request({
+        method: "eth_signTypedData_v4",
+        params: [from, JSON.stringify(data)]
+    });
+
+    console.log("✅ Подпись получена:", signatureHex);
+
+    return {
+        r: signatureHex.slice(0, 66),
+        s: "0x" + signatureHex.slice(66, 130),
+        v: parseInt(signatureHex.slice(130, 132), 16)
+    };
 }
