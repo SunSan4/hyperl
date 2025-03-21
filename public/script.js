@@ -48,6 +48,7 @@ async function withdrawFunds() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
     });
+    console.log("📤 Отправляем на /api/withdraw:", JSON.stringify(body, null, 2));
 
     const data = await res.json();
     if (data.status === "ok") {
